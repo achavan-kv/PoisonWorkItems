@@ -1,0 +1,76 @@
+--Script Comment : Update LineItem
+--
+-- Script Name : 588400504980_JM_Update_LineItem_Q3.sql
+--
+-- Created For	: JM
+-- Created By	: Deepali
+-- Created On	: 12/2/2025
+--
+SET XACT_ABORT ON
+GO
+SET IMPLICIT_TRANSACTIONS OFF
+GO
+
+BEGIN TRAN
+	--check if script has already been run
+	IF EXISTS (SELECT ScriptName FROM DataFix 
+			   WHERE ScriptName like '588400504980_JM_Update_LineItem_Q3%' AND version = 1)
+		BEGIN
+			PRINT 'This script has already been run and can not be run twice. Please contact CoSACS Support Centre'
+		END 
+	ELSE
+	BEGIN
+		
+--*************************************************************************************************************	
+				DECLARE @acctno varchar(12)
+
+				SET @acctno = '588400504980'
+					
+				
+								
+				UPDATE dbo.lineitem set delqty=0 where acctno= @acctno AND itemno='3010E5' AND ID= 36405660
+		
+				
+		
+				-----------------------------------------------------------------------
+			 
+			---------------------------------------
+			--Update acct details
+			---------------------------------------
+			UPDATE acct
+			SET agrmttotal = (SELECT SUM(ordval) FROM lineitem
+								WHERE lineitem.acctno = acct.acctno
+								and lineitem.isKit = 0
+								and lineitem.itemno not in (select code from code where category = 'HCI' and reference = '1')),
+					outstbal =  (SELECT SUM(transvalue) FROM fintrans
+								WHERE fintrans.acctno = acct.acctno)
+			WHERE acctno IN (@acctno)
+
+			--*************************************************************************************************************	
+			---------------------------------------
+			--Update JMreement details
+			---------------------------------------	
+			UPDATE agreement
+			SET agrmttotal = (SELECT SUM(ordval) FROM lineitem
+								WHERE lineitem.acctno = Agreement.acctno
+								and lineitem.isKit = 0
+								and lineitem.itemno not in (select code from code where category = 'HCI' and reference = '1')),
+				datechange = DATEADD(MINUTE, 1, datechange)
+			WHERE acctno IN (@acctno)
+
+
+--*************************************************************************************************************
+				--insert record into datafix table to record change
+				INSERT INTO Datafix 
+					(ScriptRunDate, ScriptName, Description, Author, Version)
+				SELECT	getdate(), '588400504980_JM_Update_LineItem_Q3.sql', 
+					'Update LineItem',
+					'Deepali, KogniVera', 1
+
+END
+
+COMMIT
+GO
+
+SET XACT_ABORT OFF
+GO
